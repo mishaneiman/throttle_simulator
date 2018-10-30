@@ -11,8 +11,10 @@
 
 import numpy as np
 from scipy.optimize import least_squares
+from matplotlib.pylab import *
+from mpl_toolkits.axes_grid1 import host_subplot
+import matplotlib.animation as animation
 import matplotlib.pyplot as plt
-import matplotlib.animation
 
 """builds the piecewise linear function between the pulses over system time"""
 
@@ -72,6 +74,10 @@ v_shifted = UNKNOWN_GAIN * (v_from_pulses(pulses+shift, acceleration_values, den
 
 found_gain, found_delay = least_squares(err_func, np.array([0,0])).x
 
-plt.plot(pulses, acceleration_values, '+:')
-plt.clf()
-plt.plot(dense_sampled_t, v_shifted, dense_sampled_t, v_org) 
+#plt.plot(pulses, acceleration_values, '+:')
+#plt.clf()
+#plt.plot(dense_sampled_t, v_shifted, dense_sampled_t, v_org) 
+
+"""animation test"""
+
+    
