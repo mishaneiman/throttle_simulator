@@ -11,41 +11,41 @@
 
 import numpy as np
 from scipy.optimize import least_squares
+from matplotlib import animation
 import matplotlib.pyplot as plt
-
 
 """builds the piecewise linear function between the pulses over system time"""
 
+
 def v_from_pulses(pulses, acceleration_values, dense_sampled_t, v_in):
-    
     v_out = v_in.copy()
 
-    for i,t_p in enumerate(pulses):
-        
-        if i==0:
-            
+    for i, t_p in enumerate(pulses):
+
+        if i == 0:
+
             v_out[dense_sampled_t <= np.floor(t_p)] = 0
             v_prev = 0
             t_prev = t_p
-            
+
         else:
-            
+
             active_inds = np.logical_and(dense_sampled_t > np.floor(t_prev), dense_sampled_t <= np.floor(t_p))
-            v_out[active_inds] = (dense_sampled_t[active_inds] - t_prev)*acceleration_values[i-1]+v_prev
-            v_prev = (t_p - t_prev)*acceleration_values[i-1]+v_prev
+            v_out[active_inds] = (dense_sampled_t[active_inds] - t_prev) * acceleration_values[i - 1] + v_prev
+            v_prev = (t_p - t_prev) * acceleration_values[i - 1] + v_prev
             t_prev = t_p
-        
+
     active_inds = dense_sampled_t > np.floor(t_prev)
-    v_out[active_inds] = (dense_sampled_t[active_inds] - t_prev)*acceleration_values[i-1]+v_prev
-    
+    v_out[active_inds] = (dense_sampled_t[active_inds] - t_prev) * acceleration_values[i - 1] + v_prev
+
     return v_out
 
+
 def err_func(sugg):
-   
     """Returns the difference between the desired signal and the actual (delayed, noisy and multiplied by gain) signal shifted by a suggested time interval for optimization
-    sugg[0] is the suggested gain, sugg[1] is the suggested delay""" 
-    
-    v_suggested = sugg[0]* (v_from_pulses(pulses + sugg[1], acceleration_values, dense_sampled_t, v_as_dense))
+    sugg[0] is the suggested gain, sugg[1] is the suggested delay"""
+
+    v_suggested = sugg[0] * (v_from_pulses(pulses + sugg[1], acceleration_values, dense_sampled_t, v_as_dense))
     return v_suggested - v_shifted
 
 
@@ -53,28 +53,56 @@ def err_func(sugg):
 
 DENSE_STEP = 0.1
 UNKNOWN_GAIN = 5
+counter = 0
 
-pulses = np.sort(np.random.uniform(0, 500, size = int(np.random.uniform(50,150)))) # the times at which the accelerator pedal is manipulated
-acceleration_values = np.random.uniform(-20, 20, size = pulses.shape) # the acceleration values at each pulse
+pulses = np.sort(np.random.uniform(0, 500, size=int(
+    np.random.uniform(50, 150))))  # the times at which the accelerator pedal is manipulated
+acceleration_values = np.random.uniform(-20, 20, size=pulses.shape)  # the acceleration values at each pulse
 
-delay = np.random.uniform()*np.max(pulses)/3 # the standard system delay
+delay = np.random.uniform() * np.max(pulses) / 3  # the standard system delay
 
-dense_sampled_t_min = np.floor(pulses[0]/DENSE_STEP)*DENSE_STEP
-dense_sampled_t_max = np.ceil((pulses[-1]+np.max(delay))/DENSE_STEP)*DENSE_STEP
-dense_sampled_t = np.arange(dense_sampled_t_min, dense_sampled_t_max, DENSE_STEP) # system time
+dense_sampled_t_min = np.floor(pulses[0] / DENSE_STEP) * DENSE_STEP
+dense_sampled_t_max = np.ceil((pulses[-1] + np.max(delay)) / DENSE_STEP) * DENSE_STEP
+dense_sampled_t = np.arange(dense_sampled_t_min, dense_sampled_t_max, DENSE_STEP)  # system time
 
-shift = np.random.normal(delay, 0.3, size = pulses.shape) # adds a variance to the delay so that each pulse is delayed differently
-disturbance = np.random.normal(0, 5, size = dense_sampled_t.shape)
-v_as_dense = np.zeros(shape=dense_sampled_t.shape)*np.nan
+shift = np.random.normal(delay, 0.3,
+                         size=pulses.shape)  # adds a variance to the delay so that each pulse is delayed differently
+disturbance = np.random.normal(0, 5, size=dense_sampled_t.shape)
+v_as_dense = np.zeros(shape=dense_sampled_t.shape) * np.nan
 v_org = v_from_pulses(pulses, acceleration_values, dense_sampled_t, v_as_dense)
-v_shifted = UNKNOWN_GAIN * (v_from_pulses(pulses+shift, acceleration_values, dense_sampled_t, v_as_dense) + disturbance)    
+v_shifted = UNKNOWN_GAIN * (
+            v_from_pulses(pulses + shift, acceleration_values, dense_sampled_t, v_as_dense) + disturbance)
 
-
-found_gain, found_delay = least_squares(err_func, np.array([0,0])).x
+found_gain, found_delay = least_squares(err_func, np.array([0, 0])).x
 
 plt.plot(pulses, acceleration_values, '+:')
 plt.clf()
-plt.plot(dense_sampled_t, v_shifted, dense_sampled_t, v_org) 
+plt.plot(dense_sampled_t, v_shifted, dense_sampled_t, v_org)
+
+"""animation test"""
+
+fig = plt.figure()
+ax1 = fig.add_subplot(2, 1, 1)
+ax2 = fig.add_subplot(2, 1, 2)
+t = [0]
+vs_org = [0]
+vs_shifted = [0]
+line1, = ax1.plot(t, vs_org)
+line2, = ax2.plot(t, vs_shifted)
 
 
+def animate(i):
+    global dense_sampled_t, v_org, counter, t, vs_org, vs_shifted
+    counter += 1
+    t.append(dense_sampled_t[counter])
+    vs_org.append(v_org[counter])
+    vs_shifted.append(v_shifted[counter])
+    ax1.clear()
+    plt.subplot(211)
+    plt.plot(t, vs_org, color="blue")
+    plt.subplot(212)
+    plt.plot(t, vs_shifted, color="red")
 
+
+ani = animation.FuncAnimation(fig, animate, blit=True)
+plt.show()
